@@ -2,10 +2,16 @@ from pyramid.config import Configurator
 from pyramid.view import view_config
 from pyramid.response import Response
 from tinydb import TinyDB, Query, where
+from jsonschema import validate
 
 db = TinyDB('db.json')
 table = db.table('recipes')
 
+latest = 0
+for i in table.all():
+    j = i['id']
+    if j>latest:
+        latest = j
 
 @view_config(route_name='recipe_one')
 def recipe_one(request):

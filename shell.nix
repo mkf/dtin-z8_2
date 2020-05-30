@@ -8,6 +8,7 @@ pkgs.mkShell {
         tinydb
         python-language-server
         pylint autopep8
+        jsonschema
       ]))
   ];
 }
