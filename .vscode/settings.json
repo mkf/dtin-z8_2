@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "/home/mf/.nix-profile/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintPath": "/nix/store/5dl24a8kcgkwa3ahzglpwf1ijvqrmqw6-python3-3.7.7-env/bin/pylint",
+    "python.formatting.autopep8Path": "/nix/store/kvh39254a4z67w96w5i1d41ig3xzmyav-python3-3.7.7-env/bin/autopep8"
+}
