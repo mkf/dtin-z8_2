@@ -6,26 +6,29 @@ from tinydb import TinyDB, Query, where
 db = TinyDB('db.json')
 table = db.table('recipes')
 
+
 @view_config(route_name='recipe_one')
 def recipe_one(request):
     id = request.matchdict['id']
-    try:    
+    try:
         id = int(id)
     except ValueError as e:
         raise e
     found = table.search(where('id') == id)
-    assert len(found)<=1
-    if len(found)==0:
+    assert len(found) <= 1
+    if len(found) == 0:
         return 404
-    
+
 
 @view_config(route_name='recipe_new')
 def recipe_new(request):
     pass
 
+
 @view_config(route_name='recipe_api_new')
 def recipe_api_new(request):
     pass
+
 
 config = Configurator()
 config.add_route('recipe_one', '/recipe/{id}')
