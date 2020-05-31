@@ -3,70 +3,81 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from tinydb import TinyDB, Query, where
 from jsonschema import validate
+from struct import pack
 
-class TableFile:
-
-    class WrongFieldSize(Exception):
-        pass
+class FileWithIndex:
 
     class WrongSetOfFields(Exception):
         pass
 
-    _LAYOUT_SCHEMA = {
-        "type": "object",
-        "patternProperties": { "^[a-z]{3,15}$": {"type": "integer", "exclusiveMinimum": 0} },
-        "additionalProperties": false 
-    }
+    _FIELDS = ["name", "photo", ["ingredients"], ["steps"]]
+    _FIELDS__NAMES_OF = [_get_field_name(i) for i in self._FIELDS]
+    _FIELDS__SET_OF_NAMES = set(_FIELDS__NAMES_OF)
+    _FIELDS__TYPES = [(k[0], True) if k is list else (k, False) for k in _FIELDS]
+    _PACKING = '<i'
+    _SEP = b"\n"  # b"\x00"
     
-    def __init__(self, filename : str, layout : dict):
-        validate(layout, _LAYOUT_SCHEMA)
-        self._filename : str = filename
-        self._fileopen = open(filename, "a+b")
-        self._layout = layout
-        offsets = {}
-        order = []
-        acc = 0
-        for k, v in layout.items():
-            order.append((k, v, acc, acc+v))
-            offsets[k] = (acc, acc + v)
-            acc += v
-        self._offsets = offsets
-        self._order = order
-        self._rowsize = acc
+    def __init__(self, index_filename : str, storage_filename : str):
+        self._index_filename : str = index_filename
+        self._index_f = open(index_filename, "a+b", buffering=0)
+        self._storage_filename : str = storage_filename
+        self._storage_f = open(storage_filename, "a+", buffering=0)
 
-    @property
-    def row_size(self) -> int:
-        return self._row_size
+    def _make_new_index(self):
+        self._storage_f.seek(0, 2)
+        i = self._storage_f.tell()
+        self._index_f.seek(0, 2) # pretty surely totally redundant
+        self._index_f.write(pack(_PACKING, i))
+        return i
 
-    @property
-    def layout(self) -> dict:
-        return self._layout.copy()
+    @staticmethod
+    def _get_field_name(notation):
+        t = type(notation)
+        if t is str:
+            return notation
+        else if t is list:
+            assert len(notation)==1
+            return notation[0]
+        else:
+            raise TypeError()
 
-    @property
-    def filename(self) -> str:
-        return self._filename
 
-    def _field(self, b, n):
-        assert type(b) is bytes
-        if len(b)!=n:
-            raise WrongFieldSize()
-        self._fileopen.write(b)
+    def _field(self, b):
+        assert b"\n" not in b
+        assert b"\n"[0] not in b
+        if type(b) is list:
+            for i in b:
+                _field(i)
+        else:
+            self._storage_f.write(b)
+        self._storage_f.write(_SEP)
 
     def add(self, **r):
-        if set(r.keys())!=set(self._layout.keys()):
+        if set(r.keys())!=_FIELDS__SET_OF_NAMES:
             raise WrongSetOfFields()
+        i = _make_new_index()
         for k, v, _, _ in self._order:
             _field(r[k], v)
+        return i
 
+    def get_split_row(self, i):
+        return get_raw_row.split(_SEP)
 
-db = TinyDB('db.json')
-table = db.table('recipes')
+    def get_raw_row(self, i):
+        self._index_f.seek(0, 2)
+        e = self._index_f.tell()
 
-latest = 0
-for i in table.all():
-    j = i['id']
-    if j>latest:
-        latest = j
+        self._index_f.seek(i*4, 0)
+        o = unpack(_PACKING, self._index_f.read(4))[0]
+
+        self._storage_f.seek(o, 0)
+
+        if e<=(i+1)*4:
+            self._index_f.seek(4, 1)
+            o = (unpack(_PACKING, self._index_f.read(4))[0] - o
+            return self._storage_f.read(o)
+        else:
+            return self._storage_f.read()
 
 @view_config(route_name='recipe_one')
 def recipe_one(request):
