@@ -3,11 +3,14 @@ from pyramid.view import view_config
 from pyramid.response import Response
 from tinydb import TinyDB, Query, where
 from jsonschema import validate
-from struct import pack
+from struct import pack, unpack
 
 class FileWithIndex:
 
     class WrongSetOfFields(Exception):
+        pass
+
+    class NotFound(Exception):
         pass
 
     _FIELDS = ["name", "photo", ["ingredients"], ["steps"]]
@@ -19,9 +22,9 @@ class FileWithIndex:
             assert len(notation)==1
         else:
             raise TypeError()
-    _FIELDS__NAMES_OF = [i if i is str else i[0] for i in _FIELDS]
+    _FIELDS__NAMES_OF = [(i[0] if type(i) is list else i) for i in _FIELDS]
     _FIELDS__SET_OF_NAMES = set(_FIELDS__NAMES_OF)
-    _FIELDS__TYPES = [(k[0], True) if k is list else (k, False) for k in _FIELDS]
+    _FIELDS__TYPES = [((k[0], True) if type(k) is list else (k, False)) for k in _FIELDS]
     _PACKING = '<i'
     _SEP = b"\n"  # b"\x00"
     
@@ -33,66 +36,81 @@ class FileWithIndex:
 
     def _make_new_index(self):
         self._storage_f.seek(0, 2)
-        i = self._storage_f.tell()
-        self._index_f.seek(0, 2) # pretty surely totally redundant
-        self._index_f.write(pack(_PACKING, i))
+        d = self._storage_f.tell()
+        self._index_f.seek(0, 2)
+        i = self._index_f.tell()
+        self._index_f.write(pack(self._PACKING, d))
         return i
 
-    def _field(self, b):
-        assert b"\n" not in b
-        assert b"\n"[0] not in b
+    def _field(self, b : str):
         if type(b) is list:
             for i in b:
-                _field(i)
+                self._field(i)
         else:
+            b = bytes(b, encoding="UTF-8")
+            assert b"\n" not in b
+            assert b"\n"[0] not in b
             self._storage_f.write(b)
-        self._storage_f.write(_SEP)
+        self._storage_f.write(self._SEP)
 
     def add(self, **r):
-        if set(r.keys())!=_FIELDS__SET_OF_NAMES:
-            raise WrongSetOfFields()
-        i = _make_new_index()
-        for k, v, _, _ in self._order:
-            _field(r[k], v)
+        if set(r.keys())!=self._FIELDS__SET_OF_NAMES:
+            print(r, self._FIELDS__SET_OF_NAMES)
+            raise self.WrongSetOfFields()
+        i = self._make_new_index() + 1
+        for k in self._FIELDS__NAMES_OF:
+            self._field(r[k])
         return i
 
     def __getitem__(self, i):
-        sr = iter(get_split_row(i))
+        gsr = self.get_split_row(i-1)
+        sr = iter(gsr)
         r = {}
-        for k, t in _FIELDS__TYPES:
-            r[k] = next(sr)
+        for k, t in self._FIELDS__TYPES:
             if t:
-                assert len(next(sr))==0
+                rr = []
+                while True:
+                    nsr = next(sr)
+                    if(len(nsr)==0):
+                        break
+                    rr.append(nsr)
+                r[k] = rr
+            else:
+                r[k] = next(sr)
+        assert len(next(sr))==0
         try:
             next(sr)
         except StopIteration:
             pass
         else:
-            raise AssertionError()
+            raise AssertionError(str(gsr))
+        return r
 
 
     def get_split_row(self, i):
-        return get_raw_row.split(_SEP)
+        return self.get_raw_row(i).split(self._SEP)
 
     def get_raw_row(self, i):
-        self._index_f.seek(0, 2)
-        e = self._index_f.tell()
+        self._index_f.seek(0, 2) # index is now at EOF
+        e = self._index_f.tell() # e is now how long index is
 
-        self._index_f.seek(i*4, 0)
-        o = unpack(_PACKING, self._index_f.read(4))[0]
+        if e<=i*4:
+            raise self.NotFound()
 
-        self._storage_f.seek(o, 0)
+        self._index_f.seek(i*4, 0) # index is now at i-th entry
+        o = unpack(self._PACKING, self._index_f.read(4))[0] # o is now the i-th entry
 
-        if e<=(i+1)*4:
-            self._index_f.seek(4, 1)
-            o = (unpack(_PACKING, self._index_f.read(4))[0]) - o
+        self._storage_f.seek(o, 0) # storage is now at i-th entry (at o)
+
+        if e!=self._index_f.tell():
+            o = (unpack(self._PACKING, self._index_f.read(4))[0]) - o
             return self._storage_f.read(o)
         else:
             return self._storage_f.read()
 
 fwi = FileWithIndex("recipes.idx", "recipes.dat")
 
-@view_config(route_name='recipe_one')
+@view_config(route_name='recipe_one', renderer='string')
 def recipe_one(request):
     id = request.matchdict['id']
     try:
@@ -102,19 +120,19 @@ def recipe_one(request):
     return fwi[id]
 
 
-@view_config(route_name='recipe_new')
+@view_config(route_name='recipe_new', renderer='string')
 def recipe_new(request):
-    return fwi.add({"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
+    return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
 
-@view_config(route_name='recipe_api_new')
+@view_config(route_name='recipe_api_new', renderer='string')
 def recipe_api_new(request):
-    return fwi.add({"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
+    return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
 
 config = Configurator()
-config.add_route('recipe_one', '/recipe/{id}')
 config.add_route('recipe_new', '/recipe/new')
+config.add_route('recipe_one', '/recipe/{id}')
 config.add_route('recipe_api_new', '/recipe/api/new')
 config.scan()
 
