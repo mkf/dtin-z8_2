@@ -35,7 +35,7 @@ class FileWithIndex:
         t = type(notation)
         if t is str:
             return notation
-        else if t is list:
+        elif t is list:
             assert len(notation)==1
             return notation[0]
         else:
@@ -94,6 +94,8 @@ class FileWithIndex:
         else:
             return self._storage_f.read()
 
+fwi = FileWithIndex("recipes.idx", "recipes.dat")
+
 @view_config(route_name='recipe_one')
 def recipe_one(request):
     id = request.matchdict['id']
@@ -101,20 +103,17 @@ def recipe_one(request):
         id = int(id)
     except ValueError as e:
         raise e
-    found = table.search(where('id') == id)
-    assert len(found) <= 1
-    if len(found) == 0:
-        return 404
+    return fwi[id]
 
 
 @view_config(route_name='recipe_new')
 def recipe_new(request):
-    pass
+    return fwi.add({"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
 
 @view_config(route_name='recipe_api_new')
 def recipe_api_new(request):
-    pass
+    return fwi.add({"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
 
 config = Configurator()
