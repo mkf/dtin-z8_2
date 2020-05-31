@@ -68,6 +68,7 @@ class FileWithIndex:
         gsr = self.get_split_row(i-1)
         sr = iter(gsr)
         r = {}
+        bs = lambda x: str(x, encoding="UTF-8")
         for k, t in self._FIELDS__TYPES:
             if t:
                 rr = []
@@ -75,10 +76,10 @@ class FileWithIndex:
                     nsr = next(sr)
                     if(len(nsr) == 0):
                         break
-                    rr.append(nsr)
+                    rr.append(bs(nsr))
                 r[k] = rr
             else:
-                r[k] = next(sr)
+                r[k] = bs(next(sr))
         assert len(next(sr)) == 0
         try:
             next(sr)
@@ -114,7 +115,7 @@ class FileWithIndex:
 fwi = FileWithIndex("recipes.idx", "recipes.dat")
 
 
-@view_config(route_name='recipe_one', renderer='string')
+@view_config(route_name='recipe_one', renderer='json')
 def recipe_one(request):
     id = request.matchdict['id']
     try:
@@ -124,12 +125,12 @@ def recipe_one(request):
     return fwi[id]
 
 
-@view_config(route_name='recipe_new', renderer='string')
+@view_config(route_name='recipe_new', renderer='json')
 def recipe_new(request):
     return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
 
-@view_config(route_name='recipe_api_new', renderer='string')
+@view_config(route_name='recipe_api_new', renderer='json')
 def recipe_api_new(request):
     return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
 
