@@ -89,7 +89,7 @@ class FileWithIndex:
 
         if e<=(i+1)*4:
             self._index_f.seek(4, 1)
-            o = (unpack(_PACKING, self._index_f.read(4))[0] - o
+            o = (unpack(_PACKING, self._index_f.read(4))[0]) - o
             return self._storage_f.read(o)
         else:
             return self._storage_f.read()
