@@ -180,8 +180,8 @@ def recipe_new_post(request):
     r = {
         'name': name[0],
         'photo': photo[0],
-        'ingredients': p.getall('ingredients'),
-        'steps': p.getall('steps')
+        'ingredients': [jeden for jeden in p.getall('ingredients') if len(jeden)>0],
+        'steps': [jeden for jeden in p.getall('steps') if len(jeden)>0]
         }
     try:
         _validate(r)

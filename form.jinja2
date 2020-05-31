@@ -3,15 +3,38 @@
 <head>
   <meta charset="utf-8">
   <title>new recipe form</title>
+  <style>
+	div {
+		display: inline-block;
+		vertical-align: text-top;
+	}
+	div input {
+		display: block;
+	}
+  </style>
 </head>
 <body>
 	<form method="POST">
-		<input type="text" name="name" placeholder="A title called name" required>
-		<input type="text" name="photo" accept="url" placeholder="photo url" required>
-		<input type="text" name="ingredients" placeholder="Ingredient" required>
-		<input type="text" name="ingredients" placeholder="Ingredient">
-		<input type="text" name="steps" placeholder="Step" required>
-		<input type="text" name="steps" placeholder="Step">
+		<input type="text" name="name" placeholder="A title called name" required
+			minlength="4">
+		<input type="url" pattern="^(ftp|https?).*" name="photo" placeholder="photo url" required>
+		<input type=submit>
+		<div style="display: inline-block">
+		<input type="text" name="ingredients" placeholder="Ingredient" required
+			minlength="2">
+		{% for _ in range(50) %}
+		<input type="text" name="ingredients" placeholder="Ingredient"
+			minlength="2">
+		{% endfor %}
+		</div>
+		<div style="display: inline-block">
+		<input type="text" name="steps" placeholder="Step" required
+			minlength="2">
+		{% for _ in range(50) %}
+		<input type="text" name="steps" placeholder="Step"
+			minlength="2">
+		{% endfor %}
+		</div>
 		<input type=submit>
 	</form>
 </body>
