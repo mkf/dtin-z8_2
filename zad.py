@@ -11,7 +11,15 @@ class FileWithIndex:
         pass
 
     _FIELDS = ["name", "photo", ["ingredients"], ["steps"]]
-    _FIELDS__NAMES_OF = [_get_field_name(i) for i in _FIELDS]
+    for notation in _FIELDS:
+        t = type(notation)
+        if t is str:
+            pass
+        elif t is list:
+            assert len(notation)==1
+        else:
+            raise TypeError()
+    _FIELDS__NAMES_OF = [i if i is str else i[0] for i in _FIELDS]
     _FIELDS__SET_OF_NAMES = set(_FIELDS__NAMES_OF)
     _FIELDS__TYPES = [(k[0], True) if k is list else (k, False) for k in _FIELDS]
     _PACKING = '<i'
@@ -21,7 +29,7 @@ class FileWithIndex:
         self._index_filename : str = index_filename
         self._index_f = open(index_filename, "a+b", buffering=0)
         self._storage_filename : str = storage_filename
-        self._storage_f = open(storage_filename, "a+", buffering=0)
+        self._storage_f = open(storage_filename, "a+b", buffering=0)
 
     def _make_new_index(self):
         self._storage_f.seek(0, 2)
@@ -29,18 +37,6 @@ class FileWithIndex:
         self._index_f.seek(0, 2) # pretty surely totally redundant
         self._index_f.write(pack(_PACKING, i))
         return i
-
-    @staticmethod
-    def _get_field_name(notation):
-        t = type(notation)
-        if t is str:
-            return notation
-        elif t is list:
-            assert len(notation)==1
-            return notation[0]
-        else:
-            raise TypeError()
-
 
     def _field(self, b):
         assert b"\n" not in b
