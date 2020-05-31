@@ -60,6 +60,21 @@ class FileWithIndex:
             _field(r[k], v)
         return i
 
+    def __getitem__(self, i):
+        sr = iter(get_split_row(i))
+        r = {}
+        for k, t in _FIELDS__TYPES:
+            r[k] = next(sr)
+            if t:
+                assert len(next(sr))==0
+        try:
+            next(sr)
+        except StopIteration:
+            pass
+        else:
+            raise AssertionError()
+
+
     def get_split_row(self, i):
         return get_raw_row.split(_SEP)
 
