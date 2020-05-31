@@ -1,1 +1,1 @@
-web: gunicorn zad.wsgi:app
+web: gunicorn zad:app

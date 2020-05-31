@@ -6,6 +6,7 @@ pkgs.mkShell {
     (python3.withPackages (python-packages: with python-packages; [
         pyramid_jinja2 jinja2 pyramid
         pylint autopep8
+        gunicorn
       ]))
   ];
 }
