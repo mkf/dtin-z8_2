@@ -1,0 +1,11 @@
+<h1>{{ name }}</h1>
+<img src="{{ photo }}" alt="{{ photo }}">
+<p> Ingredients <ul>
+{% for i in ingredients %}
+	<li>{{ i }}
+{% endfor %}
+</ul>
+<p> Steps <ul>
+{% for s in steps %}
+	<li>{{ s }}
+{% endfor %}

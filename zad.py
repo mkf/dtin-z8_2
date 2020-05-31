@@ -1,17 +1,14 @@
 from pyramid.config import Configurator
 from pyramid.view import view_config
 from pyramid.response import Response
-from tinydb import TinyDB, Query, where
-from jsonschema import validate
 from struct import pack, unpack
-
+from pyramid.httpexceptions import HTTPBadRequest, HTTPNotFound
+import urllib
+import os.path
 
 class FileWithIndex:
 
     class WrongSetOfFields(Exception):
-        pass
-
-    class NotFound(Exception):
         pass
 
     _FIELDS = ["name", "photo", ["ingredients"], ["steps"]]
@@ -42,7 +39,7 @@ class FileWithIndex:
         self._index_f.seek(0, 2)
         i = self._index_f.tell()
         self._index_f.write(pack(self._PACKING, d))
-        return i
+        return i//4
 
     def _field(self, b: str):
         if type(b) is list:
@@ -55,12 +52,18 @@ class FileWithIndex:
             self._storage_f.write(b)
         self._storage_f.write(self._SEP)
 
-    def add(self, **r):
+    def add(self, r):
         if set(r.keys()) != self._FIELDS__SET_OF_NAMES:
             print(r, self._FIELDS__SET_OF_NAMES)
             raise self.WrongSetOfFields()
         i = self._make_new_index() + 1
-        for k in self._FIELDS__NAMES_OF:
+        for k, t in self._FIELDS__TYPES:
+            if t:
+                assert type(r[k]) is list
+                for kk in r[k]:
+                    assert type(kk) is str
+            else:
+                assert type(r[k]) is str
             self._field(r[k])
         return i
 
@@ -97,7 +100,7 @@ class FileWithIndex:
         e = self._index_f.tell()  # e is now how long index is
 
         if e <= i*4:
-            raise self.NotFound()
+            raise HTTPNotFound()
 
         self._index_f.seek(i*4, 0)  # index is now at i-th entry
         o = unpack(self._PACKING, self._index_f.read(4))[
@@ -114,8 +117,44 @@ class FileWithIndex:
 
 fwi = FileWithIndex("recipes.idx", "recipes.dat")
 
+def _validate_url(u):
+    tokens = urllib.parse.urlparse(u)
+    return getattr(tokens, 'netloc') and getattr(tokens, 'scheme') in {'http', 'https', 'ftp'}
 
-@view_config(route_name='recipe_one', renderer='json')
+def _validate(r):
+    for i in ('name', 'photo', 'ingredients', 'steps'):
+        if i not in r:
+            raise ValueError(i+" not in "+str(r))
+    for i in ('name', 'photo'):
+        if type(r[i]) is not str:
+            raise ValueError(i+"is not str, :"+str(r[i]))
+        if "\n" in r[i]:
+            raise ValueError("a newline in "+i)
+    for i in ('ingredients', 'steps'):
+        if type(r[i]) is not list:
+            raise ValueError(i+"is not list, :"+str(r[i]))
+        if len(r[i])<1:
+            raise ValueError("length of "+i+" is less than one")
+        for v in r[i]:
+            if type(v) is not str:
+                raise ValueError("in "+i+":"+str(r[i])+" the "+v+" is not str")
+            if len(v)<2:
+                raise ValueError(v+" is less than 2 chars")
+            if "\n" in v:
+                raise ValueError("a newline in "+i)
+    if len(r['name'])<4:
+        raise ValueError(r['name']+" is less than 4 chars")
+    if not _validate_url(r['photo']):
+        raise ValueError("photo url deemed invalid")
+    return True
+    #return 'name' in r and 'photo' in r and 'ingredients' in r and 'steps' in r and \
+    #type(r['name']) is str and type(r['photo']) is str and \
+    #type(r['ingredients']) is list and type(r['steps']) is list and \
+    #len(r['name'])>3 and "\n" not in r['name'] and "\n" not in r['photo'] and _validate_url(r['photo']) and \
+    #len(r['ingredients'])>0 and len(r['steps'])>0 and \
+    #all(all((type(i) is str and len(i)>1 and "\n" not in i) for i in rr) for rr in (r['ingredients'], r['steps']))
+
+@view_config(route_name='recipe_one', renderer='one.jinja2')
 def recipe_one(request):
     id = request.matchdict['id']
     try:
@@ -125,20 +164,62 @@ def recipe_one(request):
     return fwi[id]
 
 
-@view_config(route_name='recipe_new', renderer='json')
-def recipe_new(request):
-    return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
+@view_config(route_name='recipe_new', request_method='GET', renderer='form.jinja2')
+def recipe_new_form(request):
+    return {}
+
+@view_config(route_name='recipe_new', request_method='POST', renderer='done.jinja2')
+def recipe_new_post(request):
+    p = request.POST
+    if set(p.keys()) != FileWithIndex._FIELDS__SET_OF_NAMES:
+        return HTTPBadRequest()
+    name = p.getall('name')
+    photo = p.getall('photo')
+    if len(name)>1 or len(photo)>1:
+        return HTTPBadRequest()
+    r = {
+        'name': name[0],
+        'photo': photo[0],
+        'ingredients': p.getall('ingredients'),
+        'steps': p.getall('steps')
+        }
+    try:
+        _validate(r)
+    except ValueError as e:
+        raise HTTPBadRequest(e)
+    return {"number": fwi.add(r)}
 
 
 @view_config(route_name='recipe_api_new', renderer='json')
 def recipe_api_new(request):
-    return fwi.add(**{"name": "tytul", "photo": "foto", "ingredients": ["ia", "ib", "ic"], "steps": ["sa", "sb"]})
+    j = request.json_body
+    try:
+        _validate(j)
+    except ValueError as e:
+        raise HTTPBadRequest(e)
+    return fwi.add(j)
+
+@view_config(route_name='recipe_api_one', renderer='json')
+def recipe_api_one(request):
+    id = request.matchdict['id']
+    try:
+        id = int(id)
+    except ValueError as e:
+        raise e
+    return fwi[id]
 
 
 config = Configurator()
 config.add_route('recipe_new', '/recipe/new')
 config.add_route('recipe_one', '/recipe/{id}')
 config.add_route('recipe_api_new', '/recipe/api/new')
+config.add_route('recipe_api_one', '/recipe/api/{id}')
+config.include('pyramid_jinja2')
+thisDirectory = os.path.dirname(os.path.realpath(__file__))
+config.add_jinja2_search_path(thisDirectory)
+config.commit()
+jinja2_env = config.get_jinja2_environment()
+jinja2_env.autoescape = False
 config.scan()
 
 app = config.make_wsgi_app()
