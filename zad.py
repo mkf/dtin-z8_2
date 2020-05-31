@@ -11,7 +11,7 @@ class FileWithIndex:
         pass
 
     _FIELDS = ["name", "photo", ["ingredients"], ["steps"]]
-    _FIELDS__NAMES_OF = [_get_field_name(i) for i in self._FIELDS]
+    _FIELDS__NAMES_OF = [_get_field_name(i) for i in _FIELDS]
     _FIELDS__SET_OF_NAMES = set(_FIELDS__NAMES_OF)
     _FIELDS__TYPES = [(k[0], True) if k is list else (k, False) for k in _FIELDS]
     _PACKING = '<i'
