@@ -27,10 +27,10 @@ class FileWithIndex:
     _PACKING = '<i'
     _SEP = b"\n"  # b"\x00"
 
-    def __init__(self, index_filename: str, storage_filename: str):
-        self._index_filename: str = index_filename
+    def __init__(self, index_filename, storage_filename):
+        self._index_filename = index_filename
         self._index_f = open(index_filename, "a+b", buffering=0)
-        self._storage_filename: str = storage_filename
+        self._storage_filename = storage_filename
         self._storage_f = open(storage_filename, "a+b", buffering=0)
 
     def _make_new_index(self):
@@ -41,7 +41,7 @@ class FileWithIndex:
         self._index_f.write(pack(self._PACKING, d))
         return i//4
 
-    def _field(self, b: str):
+    def _field(self, b):
         if type(b) is list:
             for i in b:
                 self._field(i)
