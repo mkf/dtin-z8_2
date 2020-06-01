@@ -46,7 +46,7 @@ class FileWithIndex:
             for i in b:
                 self._field(i)
         else:
-            b = '' if b is None else bytes(b, encoding="UTF-8")
+            b = b'' if b is None else bytes(b, encoding="UTF-8")
             assert b"\n" not in b
             assert b"\n"[0] not in b
             self._storage_f.write(b)
@@ -63,7 +63,7 @@ class FileWithIndex:
                 for kk in r[k]:
                     assert type(kk) is str
             else:
-                assert type(r[k]) is str
+                assert type(r[k]) is str or (k=='photo' and r[k] is None)
             self._field(r[k])
         return i
 
@@ -126,9 +126,9 @@ def _validate(r):
         if i not in r:
             raise ValueError(i+" not in "+str(r))
     for i in ('name', 'photo'):
-        if type(r[i]) is not str:
+        if type(r[i]) is not str and not (i=='photo' and r[i] is None):
             raise ValueError(i+"is not str, :"+str(r[i]))
-        if "\n" in r[i]:
+        if r[i] is not None and "\n" in r[i]:
             raise ValueError("a newline in "+i)
     for i in ('ingredients', 'steps'):
         if type(r[i]) is not list:
