@@ -46,7 +46,7 @@ class FileWithIndex:
             for i in b:
                 self._field(i)
         else:
-            b = bytes(b, encoding="UTF-8")
+            b = '' if b is None else bytes(b, encoding="UTF-8")
             assert b"\n" not in b
             assert b"\n"[0] not in b
             self._storage_f.write(b)
@@ -71,7 +71,7 @@ class FileWithIndex:
         gsr = self.get_split_row(i-1)
         sr = iter(gsr)
         r = {}
-        bs = lambda x: str(x, encoding="UTF-8")
+        bs = lambda x: None if len(x)==0 else str(x, encoding="UTF-8")
         for k, t in self._FIELDS__TYPES:
             if t:
                 rr = []
@@ -144,7 +144,7 @@ def _validate(r):
                 raise ValueError("a newline in "+i)
     if len(r['name'])<4:
         raise ValueError(r['name']+" is less than 4 chars")
-    if not _validate_url(r['photo']):
+    if not (r['photo'] is None or _validate_url(r['photo'])):
         raise ValueError("photo url deemed invalid")
     return True
     #return 'name' in r and 'photo' in r and 'ingredients' in r and 'steps' in r and \
@@ -177,9 +177,12 @@ def recipe_new_post(request):
     photo = p.getall('photo')
     if len(name)>1 or len(photo)>1:
         return HTTPBadRequest()
+    name = name[0]
+    photo = photo[0] if len(photo)==1 else None
+    photo = photo if len(photo)!=0 else None
     r = {
-        'name': name[0],
-        'photo': photo[0],
+        'name': name,
+        'photo': photo,
         'ingredients': [jeden for jeden in p.getall('ingredients') if len(jeden)>0],
         'steps': [jeden for jeden in p.getall('steps') if len(jeden)>0]
         }
@@ -197,7 +200,7 @@ def recipe_api_new(request):
         _validate(j)
     except ValueError as e:
         raise HTTPBadRequest(e)
-    return fwi.add(j)
+    return {"id": fwi.add(j)}
 
 @view_config(route_name='recipe_api_one', renderer='json')
 def recipe_api_one(request):

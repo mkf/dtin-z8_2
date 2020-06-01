@@ -1,6 +1,10 @@
 <h1>{{ name }}</h1>
+{% if photo %}
 <img src="{{ photo }}" alt="{{ photo }}"
 	style="float: right; max-width: 10%; max-height: 50%;">
+{% else %}
+<p> This recipe has no photo to it.
+{% endif %}
 <p> Ingredients <ul>
 {% for i in ingredients %}
 	<li>{{ i }}
