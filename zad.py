@@ -2,7 +2,7 @@ from pyramid.config import Configurator
 from pyramid.view import view_config
 from pyramid.response import Response
 from struct import pack, unpack
-from pyramid.httpexceptions import HTTPBadRequest, HTTPNotFound
+from pyramid.httpexceptions import HTTPBadRequest, HTTPNotFound, HTTPFound
 import urllib
 import os.path
 
@@ -190,7 +190,8 @@ def recipe_new_post(request):
         _validate(r)
     except ValueError as e:
         raise HTTPBadRequest(e)
-    return {"number": fwi.add(r)}
+    raise HTTPFound("/recipe/"+str(fwi.add(r)))
+    #return {"number": fwi.add(r)}
 
 
 @view_config(route_name='recipe_api_new', renderer='json')
